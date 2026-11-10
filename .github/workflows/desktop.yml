@@ -1,0 +1,23 @@
+name: Build Desktop Apps
+on:
+  workflow_dispatch:   # run manually from the "Actions" tab on GitHub
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}   # builds in GitHub's cloud for each system
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install
+      - run: npm run build:desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: taskhabit-desktop-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage

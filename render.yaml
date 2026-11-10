@@ -1,0 +1,15 @@
+# Render Blueprint: in Render, choose "New +" -> "Blueprint", connect this
+# repo, and Render reads this file automatically to set everything up.
+services:
+  - type: web
+    name: taskhabit-server
+    env: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server/server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: MONGODB_URI
+        sync: false          # you paste this in manually in the Render dashboard
+      - key: SECRET
+        generateValue: true  # Render generates a random, stable secret for you
