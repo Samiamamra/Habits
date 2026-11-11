@@ -281,12 +281,13 @@ exp:()=>{show(`<h2>نسخة احتياطية</h2><p class="mute">انسخ هذا
 copy:()=>{const x=$('#tx');x.select();try{navigator.clipboard.writeText(x.value)}catch(e){document.execCommand('copy')}toast('نُسخ النص')},
 imp:()=>show(`<h2>استيراد نسخة</h2><p class="mute">الصق النص المنسوخ سابقًا. سيحلّ محلّ بياناتك الحالية.</p><div class="fld"><textarea id="tx" rows="8" aria-label="النص المراد استيراده"></textarea><div class="err" id="e-im"></div></div><div class="acts"><button class="btn pri" data-a="doimp">استيراد</button><button class="btn" data-a="close">إلغاء</button></div>`),
 doimp:()=>{try{const d=JSON.parse($('#tx').value);if(!Array.isArray(d.tasks))throw 0;S={notes:{},logs:{},set:{theme:'auto',wk:6},...d};save();dlg.close();render();toast('اكتمل الاستيراد')}catch(e){$('#e-im').textContent='النص غير صالح. تأكد من نسخه كاملًا.'}},
-reset:()=>{if(confirm('سيُمسح كل شيء نهائيًا. هل تريد المتابعة؟')){S={tasks:[],logs:{},notes:{},set:S.set};save();render()}}};
+reset:()=>{if(confirm('سيُمسح كل شيء نهائيًا. هل تريد المتابعة؟')){S={tasks:[],logs:{},notes:{},mood:{},set:S.set};save();render()}}};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b||b.tagName==='INPUT'&&b.type!=='radio'||b.tagName==='TEXTAREA')return;const a=ACT[b.dataset.a];a&&a(b.dataset.id&&T(b.dataset.id),b.dataset.d||day,b)});
 document.addEventListener('change',e=>{const b=e.target;if(b.dataset.a==='val'){const t=T(b.dataset.id),k=t.id+'|'+b.dataset.d,v=parseFloat(b.value);isNaN(v)?put(k,null):put(k,{...L(t,b.dataset.d),v,s:'c',t:now()},'سُجّلت القيمة')}});
 document.addEventListener('input',e=>{if(e.target.dataset.a==='note'){S.notes[day]=e.target.value;save()}});
 render();
 </script>
 <script src="js/ext.js"></script>
+<script src="js/analytics.js"></script>
 </body>
 </html>

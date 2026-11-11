@@ -14,15 +14,16 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 </style>`);
 
 /* ---------- change tracking (per-record timestamps + tombstones, used for sync) ---------- */
-const recs=()=>{const m={};S.tasks.forEach(t=>m['t:'+t.id]=JSON.stringify(t));for(const k in S.logs)m['l:'+k]=JSON.stringify(S.logs[k]);for(const k in S.notes)m['n:'+k]=S.notes[k];return m};
+const recs=()=>{const m={};S.tasks.forEach(t=>m['t:'+t.id]=JSON.stringify(t));for(const k in S.logs)m['l:'+k]=JSON.stringify(S.logs[k]);for(const k in S.notes)m['n:'+k]=S.notes[k];for(const k in S.mood||{})m['m:'+k]=JSON.stringify(S.mood[k]);return m};
 function stamp(){const c=recs(),n=Date.now();H=H||{};
 for(const k in c)if(H[k]!==c[k]){S.u[k]=n;delete S.x[k];H[k]=c[k]}
 for(const k in H)if(!(k in c)){S.u[k]=n;S.x[k]=1;delete H[k]}}
-function merge(r){r={tasks:[],logs:{},notes:{},u:{},x:{},...r};
+const CL={l:'logs',n:'notes',m:'mood'};
+function merge(r){r={tasks:[],logs:{},notes:{},mood:{},u:{},x:{},...r};S.mood=S.mood||{};
 const put2=(k,del)=>{const p=k[0],id=k.slice(2);
 if(p==='t'){S.tasks=S.tasks.filter(t=>t.id!==id);if(!del)S.tasks.push(r.tasks.find(t=>t.id===id))}
-else{const m=p==='l'?'logs':'notes';del?delete S[m][id]:S[m][id]=r[m][id]}};
-for(const k in r.u)if(r.u[k]>(S.u[k]||0)){const del=!!r.x[k];if(del||(k[0]==='t'?r.tasks.some(t=>t.id===k.slice(2)):k.slice(2)in r[k[0]==='l'?'logs':'notes'])){put2(k,del);S.u[k]=r.u[k];del?S.x[k]=1:delete S.x[k]}}
+else{const m=CL[p];del?delete S[m][id]:S[m][id]=r[m][id]}};
+for(const k in r.u)if(r.u[k]>(S.u[k]||0)){const del=!!r.x[k];if(del||(k[0]==='t'?r.tasks.some(t=>t.id===k.slice(2)):k.slice(2)in r[CL[k[0]]])){put2(k,del);S.u[k]=r.u[k];del?S.x[k]=1:delete S.x[k]}}
 S.tasks.sort((a,b)=>(a.ord||0)-(b.ord||0));H=recs()}
 
 /* ---------- accounts & cloud sync ---------- */
@@ -32,7 +33,7 @@ const r=await fetch(base+'/api/'+p,{...o,headers:{'Content-Type':'application/js
 const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j};
 async function cloud(){if(!AC.tok)return;if(busy){again=1;return}busy=1;
 try{stamp();const r=await api('data');merge(r.data||{});
-await api('data',{method:'PUT',body:JSON.stringify({tasks:S.tasks,logs:S.logs,notes:S.notes,u:S.u,x:S.x})});
+await api('data',{method:'PUT',body:JSON.stringify({tasks:S.tasks,logs:S.logs,notes:S.notes,mood:S.mood||{},u:S.u,x:S.x})});
 try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}AC.last=Date.now();AC.err='';saveAC();render()}
 catch(e){if(e.message==='auth'){AC.tok='';AC.err=X('انتهت الجلسة، سجّل الدخول من جديد.','Session expired. Please sign in again.')}else AC.err=X('المزامنة متوقفة (لا اتصال).','Sync paused (offline).');saveAC()}
 busy=0;if(again){again=0;cloud()}}
@@ -80,7 +81,7 @@ ACT.imp=()=>$('#fi').click();
 document.addEventListener('change',e=>{if(e.target.id!=='fi')return;const f=e.target.files[0];e.target.value='';if(!f)return;
 f.text().then(s=>{try{const d=JSON.parse(s);if(!Array.isArray(d.tasks))throw 0;
 if(!confirm(X('سيحلّ هذا الملف محلّ بياناتك الحالية. المتابعة؟','This file will replace your current data. Continue?')))return;
-const keep=S.set,n=Date.now();S={notes:{},logs:{},u:{},x:{},...d,set:keep};S.u={};Object.keys(recs()).forEach(k=>S.u[k]=n);H=recs();save();render();toast(X('اكتمل الاستيراد','Import complete'))}
+const keep=S.set,n=Date.now();S={notes:{},logs:{},mood:{},u:{},x:{},...d,set:keep};S.u={};Object.keys(recs()).forEach(k=>S.u[k]=n);H=recs();save();render();toast(X('اكتمل الاستيراد','Import complete'))}
 catch(er){toast(X('الملف غير صالح. اختر ملف نسخة احتياطية بصيغة JSON.','Invalid file. Choose a JSON backup file.'))}})});
 
 /* ---------- settings screen additions ---------- */
@@ -119,7 +120,7 @@ document.title=en?'Habits — daily tasks & habits':'عادات — مهامك �
 const _cf=window.confirm;window.confirm=m=>_cf(S.set.lang==='en'?tx(m):m);
 
 /* ---------- init ---------- */
-S.u=S.u||{};S.x=S.x||{};S.set.lang=S.set.lang||(/^ar/i.test(navigator.language)?'ar':'en');
+S.u=S.u||{};S.x=S.x||{};S.mood=S.mood||{};S.set.lang=S.set.lang||(/^ar/i.test(navigator.language)?'ar':'en');
 S.tasks.forEach((t,i)=>{if(t.ord==null)t.ord=i});H=recs();render();
 if('serviceWorker'in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 addEventListener('online',cloud);document.addEventListener('visibilitychange',()=>{if(!document.hidden)cloud()});setInterval(cloud,60000);cloud();native();
