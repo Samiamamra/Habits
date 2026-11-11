@@ -43,6 +43,7 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 let store;
 async function initStore() {
   if (process.env.MONGODB_URI) {
+    require('./diag-mongo').describe(process.env.MONGODB_URI).forEach(l => console.log('DIAG:', l)); // never prints the password
     const { MongoClient } = require('mongodb');
     const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 8000 });
     await client.connect();
@@ -107,6 +108,7 @@ http.createServer(async (req, res) => {
   if (url.pathname === '/healthz') return send(res, 200, { ok: true });
 
   if (url.pathname.startsWith('/api/')) {
+    if (!store) return send(res, 503, { error: 'storage unavailable' });
     try {
       const route = url.pathname.slice(5);
       if (req.method === 'POST' && (route === 'register' || route === 'login')) {
@@ -153,5 +155,8 @@ http.createServer(async (req, res) => {
   });
 }).listen(PORT, () => {});
 
-initStore().then(() => console.log('TaskHabit running on http://localhost:' + PORT))
-  .catch(e => { console.error('Failed to initialize storage:', e.message); process.exit(1); });
+// Keep the server up (so the site isn't a 502) and retry; API calls answer 503 until storage is ready.
+(function boot() {
+  initStore().then(() => console.log('TaskHabit running on http://localhost:' + PORT))
+    .catch(e => { console.error('Failed to initialize storage:', e.message, '— retrying in 30s'); setTimeout(boot, 30000); });
+})();
