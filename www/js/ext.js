@@ -25,7 +25,8 @@ for(const k in r.u)if(r.u[k]>(S.u[k]||0)){const del=!!r.x[k];if(del||(k[0]==='t'
 S.tasks.sort((a,b)=>(a.ord||0)-(b.ord||0));H=recs()}
 
 /* ---------- accounts & cloud sync ---------- */
-const api=async(p,o={})=>{const base=(AC.url||'').replace(/\/+$/,'');
+const SERVER='https://taskhabit-server.onrender.com',DEF=()=>window.Capacitor||location.protocol==='file:'?SERVER:'';/* web = same origin; phone/desktop apps use the hosted server automatically */
+const api=async(p,o={})=>{const base=(AC.url||DEF()).replace(/\/+$/,'');
 const r=await fetch(base+'/api/'+p,{...o,headers:{'Content-Type':'application/json',...(AC.tok?{Authorization:'Bearer '+AC.tok}:{})}});
 const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j};
 async function cloud(){if(!AC.tok)return;if(busy){again=1;return}busy=1;
@@ -82,12 +83,12 @@ const keep=S.set,n=Date.now();S={notes:{},logs:{},u:{},x:{},...d,set:keep};S.u={
 catch(er){toast(X('الملف غير صالح. اختر ملف نسخة احتياطية بصيغة JSON.','Invalid file. Choose a JSON backup file.'))}})});
 
 /* ---------- settings screen additions ---------- */
-ACT.auth=async(t,d,b)=>{const g=i=>$('#'+i).value.trim(),e=$('#e-ac');AC.url=g('au');e.textContent='';
+ACT.auth=async(t,d,b)=>{const g=i=>$('#'+i).value.trim(),e=$('#e-ac');e.textContent='';
 try{const r=await api(b.dataset.m,{method:'POST',body:JSON.stringify({email:g('ae'),password:$('#ap').value})});AC.tok=r.token;AC.email=r.email;saveAC();await cloud();render()}catch(er){e.textContent=EM(er.message)}};
 ACT.logout=()=>{AC={url:AC.url};saveAC();render()};ACT.syncnow=()=>{cloud().then(()=>toast(X('تمت المزامنة','Synced')))};ACT.perm=askPerm;
 views.settings=(base=>()=>{const ok=!!AC.tok;return base().replace('<h2>بياناتك</h2>',`<h2>${X('اللغة','Language')}</h2><div class="card fld">${seg('lang',[['ar','العربية'],['en','English']],S.set.lang)}</div>
 <h2>${X('الحساب والمزامنة','Account & sync')}</h2><div class="card">`+(ok?`<p style="margin:0 0 8px">${X('متصل بالحساب','Signed in as')} <b>${esc(AC.email)}</b></p><p class="mute sm">${AC.last?X('آخر مزامنة: ','Last sync: ')+new Date(AC.last).toLocaleString(LOC()):''} ${esc(AC.err||'')}</p><div class="acts" style="margin:0"><button class="btn pri" data-a="syncnow">${X('مزامنة الآن','Sync now')}</button><button class="btn" data-a="logout">${X('تسجيل الخروج','Sign out')}</button></div>`
-:`<p class="mute" style="margin-top:0">${X('سجّل الدخول لمزامنة مهامك بين الهاتف والحاسوب والموقع.','Sign in to sync your tasks across phone, desktop and web.')}</p>${AC.err?`<p class="err">${esc(AC.err)}</p>`:''}<div class="fld"><label for="au">${X('عنوان الخادم (اتركه فارغًا في الموقع)','Server URL (leave empty on the website)')}</label><input id="au" dir="ltr" placeholder="https://example.com" value="${esc(AC.url||'')}"></div><div class="fld"><label for="ae">${X('البريد الإلكتروني','Email')}</label><input id="ae" type="email" dir="ltr" autocomplete="email"></div><div class="fld"><label for="ap">${X('كلمة المرور','Password')}</label><input id="ap" type="password" autocomplete="current-password"></div><div class="err" id="e-ac"></div><div class="acts" style="margin:0"><button class="btn pri" data-a="auth" data-m="login">${X('تسجيل الدخول','Sign in')}</button><button class="btn" data-a="auth" data-m="register">${X('إنشاء حساب','Create account')}</button></div>`)+`</div>
+:`<p class="mute" style="margin-top:0">${X('سجّل الدخول لمزامنة مهامك بين الهاتف والحاسوب والموقع.','Sign in to sync your tasks across phone, desktop and web.')}</p>${AC.err?`<p class="err">${esc(AC.err)}</p>`:''}<div class="fld"><label for="ae">${X('البريد الإلكتروني','Email')}</label><input id="ae" type="email" dir="ltr" autocomplete="email"></div><div class="fld"><label for="ap">${X('كلمة المرور','Password')}</label><input id="ap" type="password" autocomplete="current-password"></div><div class="err" id="e-ac"></div><div class="acts" style="margin:0"><button class="btn pri" data-a="auth" data-m="login">${X('تسجيل الدخول','Sign in')}</button><button class="btn" data-a="auth" data-m="register">${X('إنشاء حساب','Create account')}</button></div>`)+`</div>
 <h2>${X('التذكيرات','Reminders')}</h2><div class="card"><p class="mute" style="margin-top:0">${X('حدّد وقت التذكير داخل كل مهمة. فعّل الإشعارات ليصلك التنبيه.','Set a reminder time inside each task. Turn on notifications to get alerts.')}</p><button class="btn" data-a="perm">${X('تفعيل الإشعارات','Enable notifications')}</button></div><h2>بياناتك</h2>`).replace('</div></div>',m=>m)+'<input type="file" id="fi" accept=".json,application/json" hidden>'})(views.settings);
 
 /* ---------- English (DOM translation of the Arabic templates) ---------- */
