@@ -31,6 +31,11 @@ function describe(raw) {
 
   L.push('اسم المستخدم (كما قرأه السكربت): ' + JSON.stringify(user));
   L.push('طول كلمة المرور: ' + pass.length);
+  const dec = (() => { try { return decodeURIComponent(pass); } catch { return pass; } })();
+  const cnt = (re, t) => (t.match(re) || []).length;
+  L.push('تركيب كلمة المرور: ' + cnt(/[A-Za-z]/g, dec) + ' حروف إنجليزية، ' + cnt(/[0-9]/g, dec) + ' أرقام، ' + cnt(/[^\x21-\x7e]/g, dec) + ' غير ASCII/مخفية، ' + cnt(/[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]/g, dec) + ' رموز');
+  if (/[^\x21-\x7e]/.test(dec)) warn('كلمة المرور فيها حروف غير إنجليزية أو غير مرئية (مثل حرف عربي أو علامة اتجاه مخفية) — اكتبها من جديد بلوحة مفاتيح إنجليزية.');
+  if (/[^\x21-\x7e]/.test(user)) warn('اسم المستخدم فيه حروف غير إنجليزية أو غير مرئية.');
   if (user !== user.trim()) warn('اسم المستخدم فيه مسافات زائدة.');
   if (pass !== pass.trim()) warn('كلمة المرور فيها مسافة/سطر جديد في أولها أو آخرها.');
   if (/[<>]/.test(pass) || pass === '<password>') warn('كلمة المرور تحوي < أو > — على الأرجح تركت علامتي <password> حول كلمة المرور. احذفهما.');
