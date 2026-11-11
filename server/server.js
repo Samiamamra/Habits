@@ -79,9 +79,14 @@ async function initStore() {
 }
 
 const hits = new Map(); // naive per-IP limiter for login/register
+// Behind Render's proxy, req.socket.remoteAddress is the proxy itself, which would
+// put ALL users in one shared bucket — so use the client IP from X-Forwarded-For.
+const clientIp = req => String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
 const limited = ip => {
   const now = Date.now(), a = (hits.get(ip) || []).filter(t => now - t < 60000);
-  a.push(now); hits.set(ip, a); return a.length > 10;
+  a.push(now); hits.set(ip, a);
+  if (hits.size > 5000) for (const [k, v] of hits) if (now - v[v.length - 1] > 60000) hits.delete(k);
+  return a.length > 10;
 };
 
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
@@ -105,20 +110,21 @@ http.createServer(async (req, res) => {
     try {
       const route = url.pathname.slice(5);
       if (req.method === 'POST' && (route === 'register' || route === 'login')) {
-        if (limited(req.socket.remoteAddress)) return send(res, 429, { error: 'rate' });
+        if (limited(clientIp(req))) return send(res, 429, { error: 'rate' });
         const { email, password } = await body(req);
         const e = String(email || '').trim().toLowerCase();
+        const pw = String(password || '');
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return send(res, 400, { error: 'bad' });
         if (route === 'register') {
-          if (String(password || '').length < 8) return send(res, 400, { error: 'pw' });
+          if (pw.length < 8) return send(res, 400, { error: 'pw' });
           const salt = crypto.randomBytes(16).toString('hex');
           const id = crypto.randomBytes(16).toString('hex');
-          const created = await store.putUserIfNew(e, { id, salt, hash: hashPw(password, salt) });
+          const created = await store.putUserIfNew(e, { id, salt, hash: hashPw(pw, salt) });
           if (!created) return send(res, 409, { error: 'exists' });
           return send(res, 200, { token: sign(id), email: e });
         }
         const u = await store.getUser(e);
-        const ok = u && crypto.timingSafeEqual(Buffer.from(hashPw(String(password || ''), u.salt)), Buffer.from(u.hash));
+        const ok = u && crypto.timingSafeEqual(Buffer.from(hashPw(pw, u.salt)), Buffer.from(u.hash));
         return ok ? send(res, 200, { token: sign(u.id), email: e }) : send(res, 401, { error: 'creds' });
       }
       if (route === 'data') {
@@ -128,7 +134,8 @@ http.createServer(async (req, res) => {
         if (req.method === 'PUT') {
           const d = await body(req);
           if (!Array.isArray(d.tasks) || typeof d.logs !== 'object') return send(res, 400, { error: 'bad' });
-          await store.putData(id, d);
+          // keep only the known fields (never let the client write arbitrary keys like _id)
+          await store.putData(id, { tasks: d.tasks, logs: d.logs, notes: d.notes || {}, u: d.u || {}, x: d.x || {} });
           return send(res, 200, { ok: true });
         }
       }
