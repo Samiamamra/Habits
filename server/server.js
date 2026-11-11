@@ -38,7 +38,7 @@ const hashPw = (pw, salt) => crypto.scryptSync(pw, salt, 64).toString('hex');
 // ---------- storage backend ----------
 // store.getUser(email) -> {id,salt,hash} | null
 // store.putUserIfNew(email, rec) -> true if created, false if email already exists
-// store.getData(id) -> {tasks,logs,notes,u,x} | null
+// store.getData(id) -> {tasks,logs,notes,mood,u,x} | null
 // store.putData(id, data) -> void
 let store;
 async function initStore() {
@@ -58,7 +58,7 @@ async function initStore() {
       },
       async getData(id) {
         const d = await Data.findOne({ _id: id });
-        return d ? { tasks: d.tasks, logs: d.logs, notes: d.notes, u: d.u, x: d.x } : null;
+        return d ? { tasks: d.tasks, logs: d.logs, notes: d.notes, mood: d.mood, u: d.u, x: d.x } : null;
       },
       async putData(id, data) { await Data.updateOne({ _id: id }, { $set: data }, { upsert: true }); },
     };
@@ -137,7 +137,7 @@ http.createServer(async (req, res) => {
           const d = await body(req);
           if (!Array.isArray(d.tasks) || typeof d.logs !== 'object') return send(res, 400, { error: 'bad' });
           // keep only the known fields (never let the client write arbitrary keys like _id)
-          await store.putData(id, { tasks: d.tasks, logs: d.logs, notes: d.notes || {}, u: d.u || {}, x: d.x || {} });
+          await store.putData(id, { tasks: d.tasks, logs: d.logs, notes: d.notes || {}, mood: d.mood || {}, u: d.u || {}, x: d.x || {} });
           return send(res, 200, { ok: true });
         }
       }
